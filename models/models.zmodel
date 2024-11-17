@@ -1,0 +1,216 @@
+
+
+model Skill {
+
+    id                String        @id @default(uuid())  
+    name            String          
+    category    String          
+    description  String?          
+
+userSkills  UserSkill[]  @relation("skill")  
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model LearningPath {
+
+    id                String        @id @default(uuid())  
+    name            String          
+    description  String?          
+    difficultyLevel  String          
+    estimatedDuration  Float            
+
+courses      Course[]    @relation("learningPath")  
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model Job {
+
+    id                String        @id @default(uuid())  
+    title          String          
+    company      String          
+    description  String          
+    requirements  String          
+    location    String          
+    salaryRange  String?          
+    status        String          
+
+userJobs    UserJob[]  @relation("job")  
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model Course {
+
+    id                String        @id @default(uuid())  
+    title          String          
+    description  String?          
+    duration    Float            
+    status        String          
+
+learningPathId  String          
+    learningPath  LearningPath?  @relation(fields: [learningPathId], references: [id], name:"learningPath")  
+ 
+    userCourses  UserCourse[]  @relation("course")  
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model Mentor {
+
+    id                String        @id @default(uuid())  
+    expertise  String          
+    industry    String          
+    hourlyRate  String          
+    availabilityStatus  String          
+    bio              String?          
+
+userId        String          
+    user            User?            @relation(fields: [userId], references: [id], name:"user")  
+ 
+    mentoringSessions  MentoringSession[]  @relation("mentor")  
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model UserSkill {
+
+    id                String        @id @default(uuid())  
+    proficiencyLevel  String          
+    verified    Boolean        
+
+userId        String          
+    user            User?            @relation(fields: [userId], references: [id], name:"user")  
+    skillId      String          
+    skill          Skill?          @relation(fields: [skillId], references: [id], name:"skill")  
+ 
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model UserCourse {
+
+    id                String        @id @default(uuid())  
+    progress    Float            
+    completionDate  String?          
+    status        String          
+
+userId        String          
+    user            User?            @relation(fields: [userId], references: [id], name:"user")  
+    courseId    String          
+    course        Course?        @relation(fields: [courseId], references: [id], name:"course")  
+ 
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model UserJob {
+
+    id                String        @id @default(uuid())  
+    applicationDate  String          
+    status        String          
+
+userId        String          
+    user            User?            @relation(fields: [userId], references: [id], name:"user")  
+    jobId          String          
+    job              Job?              @relation(fields: [jobId], references: [id], name:"job")  
+ 
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+model MentoringSession {
+
+    id                String        @id @default(uuid())  
+    sessionDate  String          
+    duration    Float            
+    status        String          
+    notes          String?          
+
+mentorId    String          
+    mentor        Mentor?        @relation(fields: [mentorId], references: [id], name:"mentor")  
+    userId        String          
+    user            User?            @relation(fields: [userId], references: [id], name:"user")  
+ 
+      createdAt DateTime @default(now())
+      updatedAt DateTime @updatedAt  @default(now())
+      @@allow("all", true)
+}
+
+enum UserStatus {
+    INVITED
+    VERIFIED
+}
+
+model User {
+    id                String             @id @default(uuid())
+    name              String?
+    email             String?            @unique
+    pictureUrl        String?            @default('https://i.imgur.com/ZdJSK3Y.jpeg')
+    tokenInvitation   String?
+    emailVerified     Boolean?
+    
+    status            UserStatus         @default(VERIFIED)
+
+    // this is the role of the user for the application
+    globalRole        String             @default('USER')
+    password          String?            @password @omit
+    createdAt         DateTime           @default(now())
+    updatedAt         DateTime           @updatedAt @default(now())
+    accounts          Account[]
+    sessions          Session[]
+
+mentors      Mentor[]    @relation("user")  
+        userSkills  UserSkill[]  @relation("user")  
+        userCourses  UserCourse[]  @relation("user")  
+        userJobs    UserJob[]  @relation("user")  
+        mentoringSessions  MentoringSession[]  @relation("user")  
+
+@@auth()
+    @@allow("all", auth().id == this.id)
+    @@allow('all', auth().globalRole == 'ADMIN')
+
+    //we only allow that user to register if they don't create an admin role
+    @@allow("create", globalRole != 'ADMIN')
+    @@allow("read", true)
+}
+
+model Account {
+    id                       String  @id @default(uuid())
+    userId                   String
+    type                     String
+    provider                 String
+    providerAccountId        String
+    refresh_token            String? // @db.Text
+    access_token             String? // @db.Text
+    expires_at               Int?
+    token_type               String?
+    scope                    String?
+    id_token                 String? // @db.Text
+    session_state            String?
+    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    refresh_token_expires_in Int?
+
+    @@unique([provider, providerAccountId])
+
+    @@allow("all", auth().id == user.id)
+}
+
+model Session {
+    id           String   @id @default(uuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@allow("all", auth().id == user.id)
+}
